@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "smart-budget-mcp": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "--directory",
+        "C:/Users/malle/smart budget planner",
+        "run",
+        "smart-budget-mcp"
+      ]
+    }
+  }
+}

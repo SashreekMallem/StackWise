@@ -1,0 +1,25 @@
+[project]
+name = "smart-budget-mcp"
+version = "0.1.0"
+description = "Smart Budget Optimizer AI MCP server for purchase planning, price aggregation, and AI agent integration"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.12.0",
+    "httpx>=0.24.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.22.0",
+    "pydantic>=2.0.0",
+    "ollama>=0.2.0"
+]
+
+[[project.authors]]
+name = "SashreekMallem"
+email = "sashreekreddy34@gmail.com"
+
+[build-system]
+requires = [ "uv_build>=0.8.0,<0.9",]
+build-backend = "uv_build"
+
+[project.scripts]
+smart-budget-mcp = "smart_budget_mcp:main"
