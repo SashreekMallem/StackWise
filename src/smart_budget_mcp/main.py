@@ -1,6 +1,8 @@
 # src/smart_budget_mcp/main.py
 import asyncio
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import httpx
 from fastapi import FastAPI, Query
 
@@ -8,8 +10,7 @@ from .state import wishlist, groceries, budget, user_profile
 from .schemas import BudgetInput, CardNamesInput, WishlistItemInput, GroceryItemInput
 from .savings_engine import (
     get_credit_card_perks, fetch_gift_card_deals,
-    fetch_rakuten_coupons, fetch_rakuten_offers, fetch_rakuten_cashback,
-    fetch_rakuten_advertisers, fetch_rakuten_products, fetch_rakuten_deeplink, fetch_rakuten_link_locator
+    fetch_couponsapi_coupons, fetch_couponsapi_deals
 )
 
 # --- LLM Integration ---
@@ -139,14 +140,9 @@ async def get_shopping_list_value(items: list[str] = Query(...), location: str =
                 continue
             # --- LLM Quantity/Unit Extraction ---
             total_quantity, unit_type, unit_price = await extract_quantity_with_llm(offer.get("title", ""), base_price)
-            # --- Rakuten Integrations ---
-            rakuten_coupons = await fetch_rakuten_coupons(offer.get("store", ""))
-            rakuten_offers = await fetch_rakuten_offers(offer.get("store", ""))
-            rakuten_cashback = await fetch_rakuten_cashback(offer.get("store", ""))
-            rakuten_advertisers = await fetch_rakuten_advertisers(store_name=offer.get("store", ""))
-            rakuten_products = await fetch_rakuten_products(item_name, None)
-            rakuten_deeplink = await fetch_rakuten_deeplink([offer.get("link", "")])
-            rakuten_link_locator = await fetch_rakuten_link_locator(advertiser_name=offer.get("store", ""))
+            # --- CouponsAPI.org Integrations ---
+            couponsapi_coupons = await fetch_couponsapi_coupons(offer.get("store", ""))
+            couponsapi_deals = await fetch_couponsapi_deals(offer.get("store", ""))
             # Apply gift card deals
             gift_card = await fetch_gift_card_deals(offer.get("store", ""))
             gift_card_discount = gift_card["discount"] if gift_card else 0.0
@@ -169,13 +165,8 @@ async def get_shopping_list_value(items: list[str] = Query(...), location: str =
                 "llm_total_quantity": total_quantity,
                 "llm_unit_type": unit_type,
                 "llm_unit_price": unit_price,
-                "rakuten_coupons": rakuten_coupons,
-                "rakuten_offers": rakuten_offers,
-                "rakuten_cashback": rakuten_cashback,
-                "rakuten_advertisers": rakuten_advertisers,
-                "rakuten_products": rakuten_products,
-                "rakuten_deeplink": rakuten_deeplink,
-                "rakuten_link_locator": rakuten_link_locator
+                "couponsapi_coupons": couponsapi_coupons,
+                "couponsapi_deals": couponsapi_deals
             }
             analyzed_offers.append(analyzed)
             if price_after_perks < best_effective_price:
@@ -185,4 +176,17 @@ async def get_shopping_list_value(items: list[str] = Query(...), location: str =
             "best_deal": best_deal,
             "all_deals": analyzed_offers
         }
-    return results 
+    return results
+
+@app.get("/store_coupons_deals")
+async def get_store_coupons_deals(store: str):
+    """
+    Fetch coupons and deals for a given store using CouponsAPI.org integration.
+    """
+    coupons = await fetch_couponsapi_coupons(store)
+    deals = await fetch_couponsapi_deals(store)
+    return {
+        "store": store,
+        "coupons": coupons,
+        "deals": deals
+    }

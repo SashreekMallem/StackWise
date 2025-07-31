@@ -1,6 +1,8 @@
-# src/smart_budget_mcp/main.py
+ # src/smart_budget_mcp/main.py
 import asyncio
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import httpx
 import logging
 from fastapi import FastAPI, Query

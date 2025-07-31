@@ -2,8 +2,11 @@ import httpx
 import asyncio
 import os
 
-# --- Rakuten API Key ---
-RAKUTEN_API_KEY = os.getenv("RAKUTEN_API_KEY")
+
+# --- Load API keys from .env ---
+from dotenv import load_dotenv
+load_dotenv()
+COUPONSAPI_KEY = os.getenv("COUPONSAPI_KEY")
 
 # --- Layer 3: Mock Credit Card Perks ---
 # In a real application, this would be a database populated by a service like RewardsCC API
@@ -81,117 +84,29 @@ async def fetch_gift_card_deals(store_name: str):
     
     return None
 
-# --- Rakuten API Integrations ---
+# --- CouponsAPI.org Integrations ---
 
-async def fetch_rakuten_coupons(store_name):
-    if not RAKUTEN_API_KEY:
-        return []
-    url = "https://api.rakuten.com/coupon/1.0"
-    params = {"merchant": store_name, "api_key": RAKUTEN_API_KEY}
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params)
-            if resp.status_code == 200:
-                return resp.json()
-    except Exception:
-        pass
-    return []
 
-async def fetch_rakuten_offers(store_name):
-    if not RAKUTEN_API_KEY:
-        return []
-    url = "https://api.rakuten.com/v1/offers"
-    params = {"merchant": store_name, "api_key": RAKUTEN_API_KEY}
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params)
-            if resp.status_code == 200:
-                return resp.json()
-    except Exception:
-        pass
-    return []
+# --- CouponAPI.org Incremental Feed Integration ---
+import requests
+import time
 
-async def fetch_rakuten_cashback(store_name):
-    if not RAKUTEN_API_KEY:
-        return None
-    url = "https://api.rakuten.com/v1/partnerships"
-    params = {"merchant": store_name, "api_key": RAKUTEN_API_KEY}
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params)
-            if resp.status_code == 200:
-                return resp.json()
-    except Exception:
-        pass
-    return None
-
-async def fetch_rakuten_advertisers(store_name=None, advertiser_id=None):
-    if not RAKUTEN_API_KEY:
+def fetch_couponapi_incremental(last_extract=None):
+    """
+    Fetches incremental coupon feed from CouponAPI.org since last_extract (UNIX timestamp).
+    Returns a list of offers.
+    """
+    if not COUPONSAPI_KEY:
         return []
-    if advertiser_id:
-        url = f"https://api.rakuten.com/v2/advertisers/{advertiser_id}"
-        params = {"api_key": RAKUTEN_API_KEY}
-    else:
-        url = "https://api.rakuten.com/v2/advertisers"
-        params = {"name": store_name, "api_key": RAKUTEN_API_KEY} if store_name else {"api_key": RAKUTEN_API_KEY}
+    if last_extract is None:
+        # Default: 1 year ago
+        last_extract = int(time.time()) - 365 * 24 * 60 * 60
+    url = f"https://couponapi.org/api/getIncrementalFeed/?API_KEY={COUPONSAPI_KEY}&last_extract={last_extract}&format=json"
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params)
-            if resp.status_code == 200:
-                return resp.json()
-    except Exception:
-        pass
-    return []
-
-async def fetch_rakuten_products(query, advertiser_id=None):
-    if not RAKUTEN_API_KEY:
-        return []
-    url = "https://api.rakuten.com/productsearch/1.0"
-    params = {"query": query, "api_key": RAKUTEN_API_KEY}
-    if advertiser_id:
-        params["advertiser_id"] = advertiser_id
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params)
-            if resp.status_code == 200:
-                return resp.json()
-    except Exception:
-        pass
-    return []
-
-async def fetch_rakuten_deeplink(urls):
-    if not RAKUTEN_API_KEY:
-        return []
-    url = "https://api.rakuten.com/v1/links/deep_links"
-    headers = {"Authorization": f"Bearer {RAKUTEN_API_KEY}"}
-    data = {"urls": urls}
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(url, headers=headers, json=data)
-            if resp.status_code == 200:
-                return resp.json()
-    except Exception:
-        pass
-    return []
-
-async def fetch_rakuten_link_locator(advertiser_name=None, advertiser_id=None, category_id=None):
-    if not RAKUTEN_API_KEY:
-        return []
-    base = "https://api.rakuten.com/linklocator/1.0"
-    if advertiser_name:
-        url = f"{base}/getMerchByName/{advertiser_name}"
-    elif advertiser_id:
-        url = f"{base}/getMerchByID/{advertiser_id}"
-    elif category_id:
-        url = f"{base}/getMerchByCategory/{category_id}"
-    else:
-        return []
-    params = {"api_key": RAKUTEN_API_KEY}
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params)
-            if resp.status_code == 200:
-                return resp.json()
+        resp = requests.get(url)
+        data = resp.json()
+        if data.get("result"):
+            return data.get("offers", [])
     except Exception:
         pass
     return []
